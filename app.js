@@ -1,0 +1,267 @@
+
+// Simple localStorage helpers
+const store = {
+  get(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+  },
+  set(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+};
+
+// Preload drills on first run
+async function ensureDrills() {
+  let drills = store.get('drills', null);
+  if (!drills) {
+    const res = await fetch('./drills.json');
+    drills = await res.json();
+    store.set('drills', drills);
+  }
+  return drills;
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function formatDate(d = new Date()) {
+  const pad = n => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+// Views
+function renderLog(drills) {
+  const categories = [...new Set(drills.map(d => d.category))].sort();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <section class="card">
+    <div class="kicker">New Entry</div>
+    <label>Date</label>
+    <input type="date" id="date" value="${formatDate()}"/>
+
+    <label>Category</label>
+    <select id="category">
+      ${categories.map(c => `<option>${c}</option>`).join('')}
+    </select>
+
+    <label>Drill</label>
+    <select id="drill"></select>
+
+    <label>Result (e.g., reps/success)</label>
+    <input id="result" placeholder="e.g., 12/15 drops landed"/>
+
+    <div class="row">
+      <div>
+        <label>Mastery (1–5)</label>
+        <select id="mastery">
+          ${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>Success %</label>
+        <input id="success" type="number" min="0" max="100" placeholder="e.g., 80"/>
+      </div>
+    </div>
+
+    <label>Notes</label>
+    <textarea id="notes" placeholder="What worked? What to adjust?"></textarea>
+
+    <button id="save">Save Entry</button>
+    <p class="small">Benchmarks appear automatically for each drill.</p>
+  </section>
+
+  <section class="card" id="drillInfo"></section>
+  `;
+
+  const catSel = document.getElementById('category');
+  const drillSel = document.getElementById('drill');
+  const info = document.getElementById('drillInfo');
+
+  function updateDrillsForCategory() {
+    const cat = catSel.value;
+    const list = drills.filter(d => d.category === cat);
+    drillSel.innerHTML = list.map(d => `<option>${d.name}</option>`).join('');
+    updateDrillInfo();
+  }
+  function updateDrillInfo() {
+    const drill = drills.find(d => d.name === drillSel.value);
+    info.innerHTML = `
+      <div class="list-item">
+        <div>
+          <div class="badge">${drill.category}</div>
+          <h3 style="margin:6px 0 4px;">${drill.name}</h3>
+          <div class="small">${drill.description}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="kicker">Goal</div>
+          <div>${drill.goal}</div>
+          <div class="kicker" style="margin-top:6px;">Reps/Duration</div>
+          <div>${drill.duration}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  catSel.addEventListener('change', updateDrillsForCategory);
+  drillSel.addEventListener('change', updateDrillInfo);
+  updateDrillsForCategory();
+
+  document.getElementById('save').addEventListener('click', () => {
+    const entry = {
+      id: uid(),
+      date: document.getElementById('date').value,
+      category: catSel.value,
+      drill: drillSel.value,
+      result: document.getElementById('result').value,
+      mastery: parseInt(document.getElementById('mastery').value, 10),
+      success: document.getElementById('success').value ? parseInt(document.getElementById('success').value, 10) : null,
+      notes: document.getElementById('notes').value
+    };
+    const history = store.get('history', []);
+    history.unshift(entry);
+    store.set('history', history);
+    alert('Saved ✅');
+  });
+}
+
+function renderHistory() {
+  const app = document.getElementById('app');
+  const history = store.get('history', []);
+  if (!history.length) {
+    app.innerHTML = `<section class="card"><p>No entries yet. Log your first drill to see history.</p></section>`;
+    return;
+  }
+  app.innerHTML = history.map(item => `
+    <section class="card">
+      <div class="list-item">
+        <div>
+          <span class="badge">${item.category}</span>
+          <strong>${item.drill}</strong>
+          <div class="small">${item.date}</div>
+        </div>
+        <div style="text-align:right;">
+          ${item.success!=null?`<div><strong>${item.success}%</strong> <span class="small">success</span></div>`:''}
+          <div class="small">Mastery: ${item.mastery}/5</div>
+        </div>
+      </div>
+      ${item.result?`<div style="margin-top:8px;">Result: ${item.result}</div>`:''}
+      ${item.notes?`<div class="small" style="margin-top:8px;">Notes: ${item.notes}</div>`:''}
+      <div class="row" style="margin-top:10px;">
+        <button data-action="edit" data-id="${item.id}">Edit</button>
+        <button data-action="delete" data-id="${item.id}">Delete</button>
+      </div>
+    </section>
+  `).join('');
+
+  // Edit/Delete handlers
+  app.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const hist = store.get('history', []).filter(e => e.id !== id);
+      store.set('history', hist);
+      renderHistory();
+    });
+  });
+
+  app.querySelectorAll('button[data-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const hist = store.get('history', []);
+      const e = hist.find(x => x.id === id);
+      // Simple edit: push back to log with prefilled values
+      store.set('editing', e);
+      switchTab('log');
+    });
+  });
+}
+
+function renderWeekly() {
+  const app = document.getElementById('app');
+  const weeks = store.get('weeks', []);
+  app.innerHTML = `
+    <section class="card">
+      <div class="kicker">Weekly Assessment</div>
+      <label>Week #</label><input id="wNum" type="number" min="1" placeholder="e.g., 1" />
+      <label>Date Range</label><input id="wRange" placeholder="e.g., Oct 27–Nov 2, 2025" />
+      <label>Focus Skill</label><input id="wFocus" placeholder="e.g., Third Shot Drop" />
+      <label>Goal for Week</label><input id="wGoal" placeholder="e.g., 10 consecutive controlled drops" />
+      <label>Measured Metric</label><input id="wMetric" placeholder="e.g., Drop accuracy" />
+      <div class="row">
+        <div><label>Result</label><input id="wResult" placeholder="e.g., 9/10" /></div>
+        <div><label>Success %</label><input id="wSuccess" type="number" min="0" max="100" placeholder="e.g., 90" /></div>
+      </div>
+      <label>Notes</label><textarea id="wNotes" placeholder="What improved? What to work on next?"></textarea>
+      <button id="wSave">Save Week</button>
+    </section>
+
+    ${weeks.length ? `<section class="card"><div class="kicker">Saved Weeks</div>${
+      weeks.map(w => `
+        <div class="list-item" style="margin:10px 0;">
+          <div>
+            <strong>Week ${w.num}</strong> — <span class="small">${w.range}</span><br/>
+            <span class="badge">${w.focus}</span> <span class="small">${w.goal}</span>
+          </div>
+          <div style="text-align:right;">
+            ${w.success!=null?`<div><strong>${w.success}%</strong></div>`:''}
+            <div class="small">${w.metric}</div>
+          </div>
+        </div>
+      `).join('')
+    }</section>` : ''}
+  `;
+
+  document.getElementById('wSave').addEventListener('click', () => {
+    const week = {
+      id: uid(),
+      num: parseInt(document.getElementById('wNum').value, 10),
+      range: document.getElementById('wRange').value,
+      focus: document.getElementById('wFocus').value,
+      goal: document.getElementById('wGoal').value,
+      metric: document.getElementById('wMetric').value,
+      result: document.getElementById('wResult').value,
+      success: document.getElementById('wSuccess').value ? parseInt(document.getElementById('wSuccess').value, 10) : null,
+      notes: document.getElementById('wNotes').value
+    };
+    const weeks = store.get('weeks', []);
+    weeks.unshift(week);
+    store.set('weeks', weeks);
+    alert('Week saved ✅');
+    renderWeekly();
+  });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  if (tab === 'log') ensureDrills().then(renderLog);
+  if (tab === 'history') renderHistory();
+  if (tab === 'weekly') renderWeekly();
+}
+
+// Tab listeners
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
+});
+
+// Seed and render initial
+ensureDrills().then(renderLog);
+
+// If editing from history
+const editing = store.get('editing', null);
+if (editing) {
+  switchTab('log');
+  // Prefill after first render tick
+  setTimeout(() => {
+    document.getElementById('date').value = editing.date;
+    document.getElementById('category').value = editing.category;
+    const event = new Event('change');
+    document.getElementById('category').dispatchEvent(event);
+    setTimeout(()=>{
+      document.getElementById('drill').value = editing.drill;
+    }, 0);
+    document.getElementById('result').value = editing.result || '';
+    document.getElementById('mastery').value = editing.mastery || 3;
+    document.getElementById('success').value = editing.success ?? '';
+    document.getElementById('notes').value = editing.notes || '';
+    // Clear edit flag
+    store.set('editing', null);
+  }, 50);
+}

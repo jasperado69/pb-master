@@ -1,0 +1,36 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Pickleball 4.0 Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="header container">
+    <h1>Pickleball 4.0 Tracker</h1>
+    <nav>
+      <button class="tab active" data-tab="log">Log Drill</button>
+      <button class="tab" data-tab="history">History</button>
+      <button class="tab" data-tab="weekly">Weekly</button>
+    </nav>
+  </div>
+
+  <main id="app" class="container"></main>
+  <footer></footer>
+
+  <script src="app.js" type="module"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
