@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pball-4.0-cache-v1';
+const CACHE_NAME = 'borris-world-cup-cache-v1';
 const ASSETS = [
   './',
   './index.html',

@@ -8,7 +8,7 @@ const store = {
 };
 
 // Preload drills on first run
-async function ensureDrills() {
+async function ensureFixtures() {
   let drills = store.get('drills', null);
   if (!drills) {
     const res = await fetch('./drills.json');
@@ -33,39 +33,39 @@ function renderLog(drills) {
   const app = document.getElementById('app');
   app.innerHTML = `
   <section class="card">
-    <div class="kicker">New Entry</div>
+    <div class="kicker">New Match Entry</div>
     <label>Date</label>
     <input type="date" id="date" value="${formatDate()}"/>
 
-    <label>Category</label>
+    <label>Competition Area</label>
     <select id="category">
       ${categories.map(c => `<option>${c}</option>`).join('')}
     </select>
 
-    <label>Drill</label>
+    <label>Fixture</label>
     <select id="drill"></select>
 
-    <label>Result (e.g., reps/success)</label>
-    <input id="result" placeholder="e.g., 12/15 drops landed"/>
+    <label>Result / Score</label>
+    <input id="result" placeholder="e.g., Borris 2–1 Rival"/>
 
     <div class="row">
       <div>
-        <label>Mastery (1–5)</label>
+        <label>Performance (1–5)</label>
         <select id="mastery">
           ${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}
         </select>
       </div>
       <div>
-        <label>Success %</label>
+        <label>Win %</label>
         <input id="success" type="number" min="0" max="100" placeholder="e.g., 80"/>
       </div>
     </div>
 
     <label>Notes</label>
-    <textarea id="notes" placeholder="What worked? What to adjust?"></textarea>
+    <textarea id="notes" placeholder="Key moments, standout plays, next adjustments"></textarea>
 
-    <button id="save">Save Entry</button>
-    <p class="small">Benchmarks appear automatically for each drill.</p>
+    <button id="save">Save Match</button>
+    <p class="small">Match goals appear automatically for each fixture.</p>
   </section>
 
   <section class="card" id="drillInfo"></section>
@@ -75,13 +75,13 @@ function renderLog(drills) {
   const drillSel = document.getElementById('drill');
   const info = document.getElementById('drillInfo');
 
-  function updateDrillsForCategory() {
+  function updateFixturesForCompetition() {
     const cat = catSel.value;
     const list = drills.filter(d => d.category === cat);
     drillSel.innerHTML = list.map(d => `<option>${d.name}</option>`).join('');
-    updateDrillInfo();
+    updateFixtureInfo();
   }
-  function updateDrillInfo() {
+  function updateFixtureInfo() {
     const drill = drills.find(d => d.name === drillSel.value);
     info.innerHTML = `
       <div class="list-item">
@@ -93,16 +93,16 @@ function renderLog(drills) {
         <div style="text-align:right;">
           <div class="kicker">Goal</div>
           <div>${drill.goal}</div>
-          <div class="kicker" style="margin-top:6px;">Reps/Duration</div>
+          <div class="kicker" style="margin-top:6px;">Stage / Duration</div>
           <div>${drill.duration}</div>
         </div>
       </div>
     `;
   }
 
-  catSel.addEventListener('change', updateDrillsForCategory);
-  drillSel.addEventListener('change', updateDrillInfo);
-  updateDrillsForCategory();
+  catSel.addEventListener('change', updateFixturesForCompetition);
+  drillSel.addEventListener('change', updateFixtureInfo);
+  updateFixturesForCompetition();
 
   document.getElementById('save').addEventListener('click', () => {
     const entry = {
@@ -126,7 +126,7 @@ function renderHistory() {
   const app = document.getElementById('app');
   const history = store.get('history', []);
   if (!history.length) {
-    app.innerHTML = `<section class="card"><p>No entries yet. Log your first drill to see history.</p></section>`;
+    app.innerHTML = `<section class="card"><p>No entries yet. Log your first match to see history.</p></section>`;
     return;
   }
   app.innerHTML = history.map(item => `
@@ -138,8 +138,8 @@ function renderHistory() {
           <div class="small">${item.date}</div>
         </div>
         <div style="text-align:right;">
-          ${item.success!=null?`<div><strong>${item.success}%</strong> <span class="small">success</span></div>`:''}
-          <div class="small">Mastery: ${item.mastery}/5</div>
+          ${item.success!=null?`<div><strong>${item.success}%</strong> <span class="small">win rate</span></div>`:''}
+          <div class="small">Performance: ${item.mastery}/5</div>
         </div>
       </div>
       ${item.result?`<div style="margin-top:8px;">Result: ${item.result}</div>`:''}
@@ -178,25 +178,25 @@ function renderWeekly() {
   const weeks = store.get('weeks', []);
   app.innerHTML = `
     <section class="card">
-      <div class="kicker">Weekly Assessment</div>
-      <label>Week #</label><input id="wNum" type="number" min="1" placeholder="e.g., 1" />
-      <label>Date Range</label><input id="wRange" placeholder="e.g., Oct 27–Nov 2, 2025" />
-      <label>Focus Skill</label><input id="wFocus" placeholder="e.g., Third Shot Drop" />
-      <label>Goal for Week</label><input id="wGoal" placeholder="e.g., 10 consecutive controlled drops" />
-      <label>Measured Metric</label><input id="wMetric" placeholder="e.g., Drop accuracy" />
+      <div class="kicker">World Cup Standings</div>
+      <label>Round #</label><input id="wNum" type="number" min="1" placeholder="e.g., 1" />
+      <label>Matchday / Date Range</label><input id="wRange" placeholder="e.g., Oct 27–Nov 2, 2025" />
+      <label>Featured Team</label><input id="wFocus" placeholder="e.g., Team Borris" />
+      <label>Target for Round</label><input id="wGoal" placeholder="e.g., Finish top of the group" />
+      <label>Measured Metric</label><input id="wMetric" placeholder="e.g., Points / goal difference" />
       <div class="row">
-        <div><label>Result</label><input id="wResult" placeholder="e.g., 9/10" /></div>
-        <div><label>Success %</label><input id="wSuccess" type="number" min="0" max="100" placeholder="e.g., 90" /></div>
+        <div><label>Result</label><input id="wResult" placeholder="e.g., 3 pts / +2 GD" /></div>
+        <div><label>Win %</label><input id="wSuccess" type="number" min="0" max="100" placeholder="e.g., 90" /></div>
       </div>
-      <label>Notes</label><textarea id="wNotes" placeholder="What improved? What to work on next?"></textarea>
-      <button id="wSave">Save Week</button>
+      <label>Notes</label><textarea id="wNotes" placeholder="Table movement, key result, what to improve next"></textarea>
+      <button id="wSave">Save Round</button>
     </section>
 
-    ${weeks.length ? `<section class="card"><div class="kicker">Saved Weeks</div>${
+    ${weeks.length ? `<section class="card"><div class="kicker">Saved Rounds</div>${
       weeks.map(w => `
         <div class="list-item" style="margin:10px 0;">
           <div>
-            <strong>Week ${w.num}</strong> — <span class="small">${w.range}</span><br/>
+            <strong>Round ${w.num}</strong> — <span class="small">${w.range}</span><br/>
             <span class="badge">${w.focus}</span> <span class="small">${w.goal}</span>
           </div>
           <div style="text-align:right;">
@@ -223,7 +223,7 @@ function renderWeekly() {
     const weeks = store.get('weeks', []);
     weeks.unshift(week);
     store.set('weeks', weeks);
-    alert('Week saved ✅');
+    alert('Round saved ✅');
     renderWeekly();
   });
 }
@@ -231,7 +231,7 @@ function renderWeekly() {
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
-  if (tab === 'log') ensureDrills().then(renderLog);
+  if (tab === 'log') ensureFixtures().then(renderLog);
   if (tab === 'history') renderHistory();
   if (tab === 'weekly') renderWeekly();
 }
@@ -242,7 +242,7 @@ document.querySelectorAll('.tab').forEach(t => {
 });
 
 // Seed and render initial
-ensureDrills().then(renderLog);
+ensureFixtures().then(renderLog);
 
 // If editing from history
 const editing = store.get('editing', null);

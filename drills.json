@@ -1,72 +1,58 @@
 [
   {
-    "category": "Serve & Return",
-    "name": "Deep Target Practice",
-    "description": "Alternate deep serves and deep returns crosscourt with your partner. Focus on depth and consistency.",
-    "goal": "8/10 serves and returns past the NVZ line",
-    "duration": "50 per side"
+    "category": "Group Stage",
+    "name": "Opening Fixture",
+    "description": "Track the first Borris World Cup match with scoreline, opponent, and early momentum notes.",
+    "goal": "Start strong and record a clean match summary",
+    "duration": "1 match"
   },
   {
-    "category": "Third Shot Drop",
-    "name": "Drop-to-Kitchen Drill",
-    "description": "Partner stands at NVZ; you hit third-shot drops aiming to land softly in the kitchen.",
-    "goal": "10 in a row without net/long",
-    "duration": "30 reps"
+    "category": "Group Stage",
+    "name": "Qualification Push",
+    "description": "Log a key group-stage result and capture what changed the table position.",
+    "goal": "Secure points toward knockout qualification",
+    "duration": "1 match"
   },
   {
-    "category": "Third Shot Drive",
-    "name": "Drive & Defend",
-    "description": "You drive third shots; partner blocks or resets into the kitchen.",
-    "goal": "\u22642 unforced errors per rally",
-    "duration": "20 exchanges"
+    "category": "Knockout Round",
+    "name": "Round of 16 Battle",
+    "description": "Record a knockout match where every goal, save, or tactical shift matters.",
+    "goal": "Advance to the next round",
+    "duration": "1 match"
   },
   {
-    "category": "Dinking",
-    "name": "Crosscourt Dink Battle",
-    "description": "Crosscourt dinks only. Vary height and spin while staying low and balanced.",
-    "goal": "15 consecutive dinks each",
-    "duration": "5 rounds"
+    "category": "Knockout Round",
+    "name": "Quarterfinal Clash",
+    "description": "Track quarterfinal pressure moments, final score, and standout performers.",
+    "goal": "Reach the semifinals",
+    "duration": "1 match"
   },
   {
-    "category": "Dinking",
-    "name": "Dink to Attack Recognition",
-    "description": "Alternate soft dinks until one player gets an attackable ball, then finish the point.",
-    "goal": "Recognize 80% attackable balls",
-    "duration": "20 points"
+    "category": "Semifinal",
+    "name": "Finals Ticket",
+    "description": "Capture the semifinal scoreline and the decisive plays that earned a place in the final.",
+    "goal": "Win and qualify for the final",
+    "duration": "1 match"
   },
   {
-    "category": "Volleys",
-    "name": "Fast Hands Battle",
-    "description": "Stand at NVZ and volley quickly with your partner \u2014 focus on control, not power.",
-    "goal": "10+ clean volleys each/rally",
-    "duration": "5 rounds"
+    "category": "Final",
+    "name": "Borris World Cup Final",
+    "description": "Document the championship match, score, hero moments, and trophy outcome.",
+    "goal": "Lift the Borris World Cup",
+    "duration": "1 final"
   },
   {
-    "category": "Transition Zone",
-    "name": "Reset & Advance",
-    "description": "Start at baseline, hit a drop, move forward, and reset balls midcourt while advancing.",
-    "goal": "Reach NVZ under control 8/10",
-    "duration": "10 sequences"
+    "category": "Player Awards",
+    "name": "Golden Boot Watch",
+    "description": "Track leading scorers and update totals after each matchday.",
+    "goal": "Identify the top scorer",
+    "duration": "After each round"
   },
   {
-    "category": "Strategy & Positioning",
-    "name": "Call & Cover",
-    "description": "Play points emphasizing communication \u2014 call 'mine', 'yours', 'switch'.",
-    "goal": "Zero missed comm errors/game",
-    "duration": "3 games"
-  },
-  {
-    "category": "Game IQ",
-    "name": "Construct-the-Point",
-    "description": "One player builds points with patient play; the other defends.",
-    "goal": "Win 60%+ constructed points",
-    "duration": "15 points"
-  },
-  {
-    "category": "Mental Composure",
-    "name": "Pressure Points",
-    "description": "Mini-games to 5 under pressure (start at 8\u20138).",
-    "goal": "Win 3 of 5 close games",
-    "duration": "5 sets"
+    "category": "Player Awards",
+    "name": "Player of the Match",
+    "description": "Log the best performer from a fixture and the reason for the award.",
+    "goal": "Name a clear standout player",
+    "duration": "Post-match"
   }
 ]
