@@ -1,10 +1,10 @@
 {
-  "name": "Pickleball 4.0 Tracker",
-  "short_name": "Pball 4.0",
+  "name": "Boris Bowl Watch",
+  "short_name": "Bowl Watch",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#22222A",
-  "theme_color": "#00B7C3",
+  "background_color": "#111016",
+  "theme_color": "#ffb703",
   "icons": [
     {
       "src": "icon-192.png",

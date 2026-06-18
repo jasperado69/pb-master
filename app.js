@@ -1,267 +1,277 @@
-
-// Simple localStorage helpers
 const store = {
   get(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
   },
-  set(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+  set(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 };
 
-// Preload drills on first run
-async function ensureDrills() {
-  let drills = store.get('drills', null);
-  if (!drills) {
-    const res = await fetch('./drills.json');
-    drills = await res.json();
-    store.set('drills', drills);
-  }
-  return drills;
+const DATA_KEY = 'borisBowlWatch';
+const ADMIN_PIN = '0420';
+
+const defaultState = {
+  startDate: new Date().toISOString(),
+  adminUnlocked: false,
+  movements: [],
+  bets: []
+};
+
+function getState() {
+  return { ...defaultState, ...store.get(DATA_KEY, defaultState) };
+}
+
+function setState(next) {
+  store.set(DATA_KEY, next);
 }
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-function formatDate(d = new Date()) {
-  const pad = n => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function pad(value) {
+  return value.toString().padStart(2, '0');
 }
 
-// Views
-function renderLog(drills) {
-  const categories = [...new Set(drills.map(d => d.category))].sort();
-  const app = document.getElementById('app');
-  app.innerHTML = `
-  <section class="card">
-    <div class="kicker">New Entry</div>
-    <label>Date</label>
-    <input type="date" id="date" value="${formatDate()}"/>
+function toDateInput(date = new Date()) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
 
-    <label>Category</label>
-    <select id="category">
-      ${categories.map(c => `<option>${c}</option>`).join('')}
-    </select>
+function toTimeInput(date = new Date()) {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
-    <label>Drill</label>
-    <select id="drill"></select>
-
-    <label>Result (e.g., reps/success)</label>
-    <input id="result" placeholder="e.g., 12/15 drops landed"/>
-
-    <div class="row">
-      <div>
-        <label>Mastery (1–5)</label>
-        <select id="mastery">
-          ${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}
-        </select>
-      </div>
-      <div>
-        <label>Success %</label>
-        <input id="success" type="number" min="0" max="100" placeholder="e.g., 80"/>
-      </div>
-    </div>
-
-    <label>Notes</label>
-    <textarea id="notes" placeholder="What worked? What to adjust?"></textarea>
-
-    <button id="save">Save Entry</button>
-    <p class="small">Benchmarks appear automatically for each drill.</p>
-  </section>
-
-  <section class="card" id="drillInfo"></section>
-  `;
-
-  const catSel = document.getElementById('category');
-  const drillSel = document.getElementById('drill');
-  const info = document.getElementById('drillInfo');
-
-  function updateDrillsForCategory() {
-    const cat = catSel.value;
-    const list = drills.filter(d => d.category === cat);
-    drillSel.innerHTML = list.map(d => `<option>${d.name}</option>`).join('');
-    updateDrillInfo();
-  }
-  function updateDrillInfo() {
-    const drill = drills.find(d => d.name === drillSel.value);
-    info.innerHTML = `
-      <div class="list-item">
-        <div>
-          <div class="badge">${drill.category}</div>
-          <h3 style="margin:6px 0 4px;">${drill.name}</h3>
-          <div class="small">${drill.description}</div>
-        </div>
-        <div style="text-align:right;">
-          <div class="kicker">Goal</div>
-          <div>${drill.goal}</div>
-          <div class="kicker" style="margin-top:6px;">Reps/Duration</div>
-          <div>${drill.duration}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  catSel.addEventListener('change', updateDrillsForCategory);
-  drillSel.addEventListener('change', updateDrillInfo);
-  updateDrillsForCategory();
-
-  document.getElementById('save').addEventListener('click', () => {
-    const entry = {
-      id: uid(),
-      date: document.getElementById('date').value,
-      category: catSel.value,
-      drill: drillSel.value,
-      result: document.getElementById('result').value,
-      mastery: parseInt(document.getElementById('mastery').value, 10),
-      success: document.getElementById('success').value ? parseInt(document.getElementById('success').value, 10) : null,
-      notes: document.getElementById('notes').value
-    };
-    const history = store.get('history', []);
-    history.unshift(entry);
-    store.set('history', history);
-    alert('Saved ✅');
+function formatDateTime(date, time) {
+  return new Date(`${date}T${time || '00:00'}`).toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short'
   });
 }
 
-function renderHistory() {
-  const app = document.getElementById('app');
-  const history = store.get('history', []);
-  if (!history.length) {
-    app.innerHTML = `<section class="card"><p>No entries yet. Log your first drill to see history.</p></section>`;
+function campaignEnd(state) {
+  const start = new Date(state.startDate);
+  return new Date(start.getTime() + (3 * 24 * 60 * 60 * 1000));
+}
+
+function remainingText(state) {
+  const remaining = campaignEnd(state) - new Date();
+  if (remaining <= 0) return 'Challenge complete';
+  const hours = Math.floor(remaining / 36e5);
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h left`;
+}
+
+function sortedMovements(state) {
+  return [...state.movements].sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('\"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function mapSrc(location) {
+  if (location?.lat && location?.lng) {
+    const lat = Number(location.lat);
+    const lng = Number(location.lng);
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`;
+  }
+  return '';
+}
+
+function renderSummary(state) {
+  const total = state.movements.length;
+  const bets = state.bets.length;
+  const latest = sortedMovements(state)[0];
+  return `
+    <section class="hero card">
+      <div>
+        <p class="eyebrow">Boris’s 3-day window</p>
+        <h2>${remainingText(state)}</h2>
+        <p class="small">Started ${new Date(state.startDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
+      </div>
+      <div class="stats">
+        <div><strong>${total}</strong><span>logs</span></div>
+        <div><strong>${bets}</strong><span>bets</span></div>
+        <div><strong>${latest ? formatDateTime(latest.date, latest.time) : '—'}</strong><span>latest</span></div>
+      </div>
+    </section>
+  `;
+}
+
+function renderMovementCard(item) {
+  const src = mapSrc(item.location);
+  return `
+    <article class="card movement">
+      <div class="list-item top-align">
+        <div>
+          <span class="badge">${item.type}</span>
+          <h3>${formatDateTime(item.date, item.time)}</h3>
+          <p class="small">${escapeHtml(item.location?.label || 'Location not recorded')}</p>
+        </div>
+        <div class="score">${item.confidence}/5</div>
+      </div>
+      ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ''}
+      ${src ? `<iframe title="Map for ${escapeHtml(item.location?.label || 'Boris movement')}" class="map" loading="lazy" src="${src}"></iframe>` : '<p class="small">Add latitude and longitude in Boris Admin to show a map pin.</p>'}
+    </article>
+  `;
+}
+
+function renderDashboard() {
+  const state = getState();
+  const movements = sortedMovements(state);
+  document.getElementById('app').innerHTML = `
+    ${renderSummary(state)}
+    <section class="card">
+      <div class="section-title">
+        <div><p class="eyebrow">Public feed</p><h2>Verified bowl movements</h2></div>
+        <button class="secondary small-button" data-switch="bets">Make a bet</button>
+      </div>
+      ${movements.length ? movements.map(renderMovementCard).join('') : '<p>No Boris-confirmed movements yet. Ask the admin to log the first splash.</p>'}
+    </section>
+  `;
+  bindTabLinks();
+}
+
+function renderAdmin() {
+  const state = getState();
+  const now = new Date();
+  if (!state.adminUnlocked) {
+    document.getElementById('app').innerHTML = `
+      <section class="card narrow">
+        <p class="eyebrow">Boris only</p>
+        <h2>Admin unlock</h2>
+        <p class="small">Demo PIN: ${ADMIN_PIN}. In a real shared app, put this behind proper authentication.</p>
+        <label for="pin">PIN</label>
+        <input id="pin" inputmode="numeric" placeholder="Enter Boris admin PIN" />
+        <button id="unlock">Unlock Admin</button>
+      </section>
+    `;
+    document.getElementById('unlock').addEventListener('click', () => {
+      if (document.getElementById('pin').value === ADMIN_PIN) {
+        setState({ ...state, adminUnlocked: true });
+        renderAdmin();
+      } else alert('Wrong PIN');
+    });
     return;
   }
-  app.innerHTML = history.map(item => `
-    <section class="card">
-      <div class="list-item">
-        <div>
-          <span class="badge">${item.category}</span>
-          <strong>${item.drill}</strong>
-          <div class="small">${item.date}</div>
-        </div>
-        <div style="text-align:right;">
-          ${item.success!=null?`<div><strong>${item.success}%</strong> <span class="small">success</span></div>`:''}
-          <div class="small">Mastery: ${item.mastery}/5</div>
-        </div>
-      </div>
-      ${item.result?`<div style="margin-top:8px;">Result: ${item.result}</div>`:''}
-      ${item.notes?`<div class="small" style="margin-top:8px;">Notes: ${item.notes}</div>`:''}
-      <div class="row" style="margin-top:10px;">
-        <button data-action="edit" data-id="${item.id}">Edit</button>
-        <button data-action="delete" data-id="${item.id}">Delete</button>
-      </div>
-    </section>
-  `).join('');
 
-  // Edit/Delete handlers
-  app.querySelectorAll('button[data-action="delete"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
-      const hist = store.get('history', []).filter(e => e.id !== id);
-      store.set('history', hist);
-      renderHistory();
-    });
+  document.getElementById('app').innerHTML = `
+    ${renderSummary(state)}
+    <section class="card">
+      <p class="eyebrow">Boris admin</p>
+      <h2>Log date, time, and location</h2>
+      <div class="row">
+        <div><label>Date</label><input id="date" type="date" value="${toDateInput(now)}" /></div>
+        <div><label>Time</label><input id="time" type="time" value="${toTimeInput(now)}" /></div>
+      </div>
+      <label>Movement type</label>
+      <select id="type"><option>Confirmed bowl movement</option><option>False alarm</option><option>Bonus round</option></select>
+      <label>Location label</label>
+      <input id="locationLabel" placeholder="Bathroom, coffee shop, airport gate..." />
+      <div class="row">
+        <div><label>Latitude</label><input id="lat" inputmode="decimal" placeholder="Optional" /></div>
+        <div><label>Longitude</label><input id="lng" inputmode="decimal" placeholder="Optional" /></div>
+        <div class="align-end"><button id="geo" class="secondary">Use my location</button></div>
+      </div>
+      <label>Confidence</label>
+      <select id="confidence">${[5,4,3,2,1].map(n => `<option>${n}</option>`).join('')}</select>
+      <label>Notes</label>
+      <textarea id="notes" placeholder="Optional details for the friends..."></textarea>
+      <button id="save">Save Boris Log</button>
+      <button id="resetWindow" class="ghost">Restart 3-day window</button>
+    </section>
+  `;
+
+  document.getElementById('geo').addEventListener('click', () => {
+    if (!navigator.geolocation) return alert('Geolocation is not available in this browser.');
+    navigator.geolocation.getCurrentPosition(pos => {
+      document.getElementById('lat').value = pos.coords.latitude.toFixed(6);
+      document.getElementById('lng').value = pos.coords.longitude.toFixed(6);
+      if (!document.getElementById('locationLabel').value) document.getElementById('locationLabel').value = 'Current location';
+    }, () => alert('Could not read location. You can type a label instead.'));
   });
 
-  app.querySelectorAll('button[data-action="edit"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
-      const hist = store.get('history', []);
-      const e = hist.find(x => x.id === id);
-      // Simple edit: push back to log with prefilled values
-      store.set('editing', e);
-      switchTab('log');
-    });
+  document.getElementById('save').addEventListener('click', () => {
+    const movement = {
+      id: uid(),
+      date: document.getElementById('date').value,
+      time: document.getElementById('time').value,
+      type: document.getElementById('type').value,
+      confidence: Number(document.getElementById('confidence').value),
+      notes: document.getElementById('notes').value.trim(),
+      location: {
+        label: document.getElementById('locationLabel').value.trim(),
+        lat: document.getElementById('lat').value.trim(),
+        lng: document.getElementById('lng').value.trim()
+      }
+    };
+    if (!movement.date || !movement.time) return alert('Date and time are required.');
+    setState({ ...getState(), movements: [movement, ...getState().movements] });
+    alert('Boris log saved ✅');
+    renderAdmin();
+  });
+
+  document.getElementById('resetWindow').addEventListener('click', () => {
+    if (confirm('Restart the 3-day challenge window? Existing logs and bets stay saved.')) {
+      setState({ ...getState(), startDate: new Date().toISOString() });
+      renderAdmin();
+    }
   });
 }
 
-function renderWeekly() {
-  const app = document.getElementById('app');
-  const weeks = store.get('weeks', []);
-  app.innerHTML = `
+function renderBets() {
+  const state = getState();
+  const bets = [...state.bets].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  document.getElementById('app').innerHTML = `
+    ${renderSummary(state)}
     <section class="card">
-      <div class="kicker">Weekly Assessment</div>
-      <label>Week #</label><input id="wNum" type="number" min="1" placeholder="e.g., 1" />
-      <label>Date Range</label><input id="wRange" placeholder="e.g., Oct 27–Nov 2, 2025" />
-      <label>Focus Skill</label><input id="wFocus" placeholder="e.g., Third Shot Drop" />
-      <label>Goal for Week</label><input id="wGoal" placeholder="e.g., 10 consecutive controlled drops" />
-      <label>Measured Metric</label><input id="wMetric" placeholder="e.g., Drop accuracy" />
+      <p class="eyebrow">Friends table</p>
+      <h2>Place a bet</h2>
       <div class="row">
-        <div><label>Result</label><input id="wResult" placeholder="e.g., 9/10" /></div>
-        <div><label>Success %</label><input id="wSuccess" type="number" min="0" max="100" placeholder="e.g., 90" /></div>
+        <div><label>Name</label><input id="bettor" placeholder="Your name" /></div>
+        <div><label>Stake</label><input id="stake" placeholder="$5, coffee, bragging rights..." /></div>
       </div>
-      <label>Notes</label><textarea id="wNotes" placeholder="What improved? What to work on next?"></textarea>
-      <button id="wSave">Save Week</button>
+      <label>Prediction</label>
+      <textarea id="prediction" placeholder="Example: 2 confirmed bowl movements before Saturday noon, one at Chipotle."></textarea>
+      <button id="betSave">Lock in bet</button>
     </section>
-
-    ${weeks.length ? `<section class="card"><div class="kicker">Saved Weeks</div>${
-      weeks.map(w => `
-        <div class="list-item" style="margin:10px 0;">
-          <div>
-            <strong>Week ${w.num}</strong> — <span class="small">${w.range}</span><br/>
-            <span class="badge">${w.focus}</span> <span class="small">${w.goal}</span>
-          </div>
-          <div style="text-align:right;">
-            ${w.success!=null?`<div><strong>${w.success}%</strong></div>`:''}
-            <div class="small">${w.metric}</div>
-          </div>
-        </div>
-      `).join('')
-    }</section>` : ''}
+    <section class="card">
+      <p class="eyebrow">Bet board</p>
+      ${bets.length ? bets.map(bet => `<div class="bet"><strong>${escapeHtml(bet.name)}</strong><span>${escapeHtml(bet.stake || 'No stake')}</span><p>${escapeHtml(bet.prediction)}</p><p class="small">${new Date(bet.createdAt).toLocaleString()}</p></div>`).join('') : '<p>No bets yet. Be first on the board.</p>'}
+    </section>
   `;
-
-  document.getElementById('wSave').addEventListener('click', () => {
-    const week = {
+  document.getElementById('betSave').addEventListener('click', () => {
+    const bet = {
       id: uid(),
-      num: parseInt(document.getElementById('wNum').value, 10),
-      range: document.getElementById('wRange').value,
-      focus: document.getElementById('wFocus').value,
-      goal: document.getElementById('wGoal').value,
-      metric: document.getElementById('wMetric').value,
-      result: document.getElementById('wResult').value,
-      success: document.getElementById('wSuccess').value ? parseInt(document.getElementById('wSuccess').value, 10) : null,
-      notes: document.getElementById('wNotes').value
+      name: document.getElementById('bettor').value.trim(),
+      stake: document.getElementById('stake').value.trim(),
+      prediction: document.getElementById('prediction').value.trim(),
+      createdAt: new Date().toISOString()
     };
-    const weeks = store.get('weeks', []);
-    weeks.unshift(week);
-    store.set('weeks', weeks);
-    alert('Week saved ✅');
-    renderWeekly();
+    if (!bet.name || !bet.prediction) return alert('Name and prediction are required.');
+    setState({ ...getState(), bets: [bet, ...getState().bets] });
+    renderBets();
   });
 }
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
-  if (tab === 'log') ensureDrills().then(renderLog);
-  if (tab === 'history') renderHistory();
-  if (tab === 'weekly') renderWeekly();
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'admin') renderAdmin();
+  if (tab === 'bets') renderBets();
 }
 
-// Tab listeners
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => switchTab(t.dataset.tab));
+function bindTabLinks() {
+  document.querySelectorAll('[data-switch]').forEach(button => {
+    button.addEventListener('click', () => switchTab(button.dataset.switch));
+  });
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
-// Seed and render initial
-ensureDrills().then(renderLog);
-
-// If editing from history
-const editing = store.get('editing', null);
-if (editing) {
-  switchTab('log');
-  // Prefill after first render tick
-  setTimeout(() => {
-    document.getElementById('date').value = editing.date;
-    document.getElementById('category').value = editing.category;
-    const event = new Event('change');
-    document.getElementById('category').dispatchEvent(event);
-    setTimeout(()=>{
-      document.getElementById('drill').value = editing.drill;
-    }, 0);
-    document.getElementById('result').value = editing.result || '';
-    document.getElementById('mastery').value = editing.mastery || 3;
-    document.getElementById('success').value = editing.success ?? '';
-    document.getElementById('notes').value = editing.notes || '';
-    // Clear edit flag
-    store.set('editing', null);
-  }, 50);
-}
+switchTab('dashboard');

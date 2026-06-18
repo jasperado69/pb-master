@@ -1,5 +1,4 @@
-
-const CACHE_NAME = 'pball-4.0-cache-v1';
+const CACHE_NAME = 'boris-bowl-watch-v1';
 const ASSETS = [
   './',
   './index.html',
@@ -7,8 +6,7 @@ const ASSETS = [
   './app.js',
   './manifest.webmanifest',
   './icon-192.png',
-  './icon-512.png',
-  './drills.json'
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -18,13 +16,15 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    )).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then(cachedRes => {
-      return cachedRes || fetch(event.request);
-    })
+    caches.match(event.request).then(cachedRes => cachedRes || fetch(event.request))
   );
 });

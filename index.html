@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -8,21 +7,24 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <title>Pickleball 4.0 Tracker</title>
+  <title>Boris Bowl Watch</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="header container">
-    <h1>Pickleball 4.0 Tracker</h1>
-    <nav>
-      <button class="tab active" data-tab="log">Log Drill</button>
-      <button class="tab" data-tab="history">History</button>
-      <button class="tab" data-tab="weekly">Weekly</button>
+    <div>
+      <p class="eyebrow">3-day friendly wager tracker</p>
+      <h1>Boris Bowl Watch</h1>
+    </div>
+    <nav aria-label="Primary">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="admin">Boris Admin</button>
+      <button class="tab" data-tab="bets">Bets</button>
     </nav>
   </div>
 
   <main id="app" class="container"></main>
-  <footer></footer>
+  <footer class="container small">Private joke app: get Boris’s consent before tracking or sharing location.</footer>
 
   <script src="app.js" type="module"></script>
   <script>
